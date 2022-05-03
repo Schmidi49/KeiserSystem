@@ -21,6 +21,8 @@ class Player:
         self.active = active
         self.malus = 0
 
+        return self
+
     def eval(self, playerlist):
         score = self.value - self.malus
         for res in self.history:
@@ -107,7 +109,7 @@ def menu(playerlist=None):
             print('*' if pos == 3 else ' ', "Exit")
             print('*' if pos == 4 else ' ', "New Round")
             print('*' if pos == 5 else ' ', "Stats")
-            for player in playerlist:
+            for player in playerlist.sortedbyID:
                 print('*' if pos == 1 else ' ', 'A' if player.active else 'P', player.name + ':',
                       'score: '+player.score+',', 'malus: '+player.malus)
 
@@ -116,18 +118,34 @@ def menu(playerlist=None):
             while keyboard.is_pressed(pressed):
                 pass
             time.sleep(0.005)
-            if pressed == "nach-oben" or pressed == "nach-unten":
-                pos ^= True
+            if pressed == "nach-oben":
+                pos = up(pos, 5 + len(playerlist))
+            elif pressed == "nach-unten":
+                pos = down(pos, 5 + len(playerlist))
             elif pressed == "enter":
                 break
+            elif pressed == "tab":
+                #TODO: enter some editing tool for a player, for example tweak elo/malus/results
+                pass
             # print(pressed)
 
         if pos == 0:
             playerlist = newGame()
             playerlist.print()
             return playerlist
-        else:
+        elif pos == 1:
             load()
+        elif pos == 2:
+            save()
+        elif pos == 3:
+            close()
+        elif pos == 4:
+            newRound()
+        elif pos == 5:
+            stats()
+        else:
+            playerlist.sortedbyID[pos-5].active ^= True
+
 
 
 
@@ -152,6 +170,11 @@ def save():
     print("saving . . .")
     pass
 
+def close():
+    save()
+    print("exiting . . .")
+    exit()
+
 def newGame():
     print("Insert Players: ")
     playerlist=[]
@@ -167,6 +190,7 @@ def newGame():
         elif name == ";":
             break
         elif name == "":
+            print("Empty Name")
             continue
 
         score = input("Elo: ")
@@ -175,16 +199,27 @@ def newGame():
         elif score == ";":
             break
         elif type(score) is not int:
+            print("illegal input for Elo")
             continue
 
         playerlist.append(Player(len(playerlist), name, int(score)))
 
+
     return Playerlist(playerlist)
+
+def newRound():
+    print("playing . . .")
+    pass
+
+def stats():
+    print("stats uwu")
+    pass
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     curTournament = menu()
+
     while True:
         if menu(curTournament):
             pass
