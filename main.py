@@ -1,13 +1,8 @@
-# This is a sample Python script.
-
-# Press Umschalt+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
 import keyboard
 import os
 import time
 
-maxVal = 50
+maxVal = -1
 backTrack = 3
 
 
@@ -21,42 +16,44 @@ class Player:
         self.active = active
         self.malus = 0
 
-        return self
-
     def eval(self, playerlist):
-        score = self.value - self.malus
+        self.score = self.value
         for res in self.history:
-            score += playerlist[res[0]] * res[1]
+            self.score += playerlist[res[0]] * res[1] / 6
 
     def print(self):
         print("{}: Name: {}, Score: {}".format(self.id, self.name, self.score))
+
 
 class Playerlist:
     def __init__(self, playerlist=None):
         if playerlist is None:
             playerlist = []
         self.cur = playerlist
-        self.sortedbyID = sorted(self.cur, key=lambda x: x.score, reverse=True)
+        self.cur.sort(key=lambda x: x.score, reverse=True)
+        self.sortedByID = sorted(self.cur, key=lambda x: x.score, reverse=True)
         for player in self.cur:
             if type(player) != Player:
                 raise ValueError("Inserted a none-Player into Playerlist")
-        self.cur.sort(key=lambda x: x.score, reverse=True)
-        maxVal = 3 * len(self.cur) // 2 + 1
+        global maxVal
+        if maxVal < 0:
+            maxVal = 3 * len(self.cur) // 2 + 1
         for i in range(len(self.cur)):
-            self.cur[i].value = maxVal - i
+            self.cur[i].value = maxVal - i - self.cur[i].malus
             self.cur[i].id = i
 
     def print(self):
-        for player in self.sortedbyID:
+        for player in self.sortedByID:
             player.print()
 
-
-    def reeval(self):
+    def reEval(self):
         self.cur.sort(key=lambda x: x.score, reverse=True)
         for i in range(len(self.cur)):
             self.cur[i].value = maxVal - i
         for player in self.cur:
-            player.eval(self.sortedbyID)
+            player.eval(self.sortedByID)
+            player.score -= player.malus
+
 
 def menu(playerlist=None):
     """
@@ -73,12 +70,12 @@ def menu(playerlist=None):
     :return:
     """
 
-    if playerlist is None:
-        playerlist = []
     pos = 0
 
-    if playerlist == []:
-        pressed = ""
+    while keyboard.is_pressed("enter"):
+        pass
+
+    if not playerlist:
         while True:
             os.system('cls')
             print('*' if pos == 0 else ' ', "New tournament")
@@ -93,7 +90,7 @@ def menu(playerlist=None):
                 pos ^= True
             elif pressed == "enter":
                 break
-            #print(pressed)
+            # print(pressed)
         if pos == 0:
             playerlist = newGame()
             playerlist.print()
@@ -109,9 +106,9 @@ def menu(playerlist=None):
             print('*' if pos == 3 else ' ', "Exit")
             print('*' if pos == 4 else ' ', "New Round")
             print('*' if pos == 5 else ' ', "Stats")
-            for player in playerlist.sortedbyID:
+            for player in playerlist.sortedByID:
                 print('*' if pos == 1 else ' ', 'A' if player.active else 'P', player.name + ':',
-                      'score: '+player.score+',', 'malus: '+player.malus)
+                      'score: ' + str(player.score) + ',', 'malus: ' + str(player.malus))
 
             pressed = keyboard.read_key()
             time.sleep(0.005)
@@ -125,11 +122,12 @@ def menu(playerlist=None):
             elif pressed == "enter":
                 break
             elif pressed == "tab":
-                #TODO: enter some editing tool for a player, for example tweak elo/malus/results
+                # TODO: enter some editing tool for a player, for example tweak elo/malus/results/name
                 pass
             # print(pressed)
 
         if pos == 0:
+            # TODO: question if game should be saved
             playerlist = newGame()
             playerlist.print()
             return playerlist
@@ -147,37 +145,39 @@ def menu(playerlist=None):
             playerlist.sortedbyID[pos-5].active ^= True
 
 
-
-
-
 def up(pos, max, min=0):
-    pos+=1
+    pos += 1
     if pos > max:
         pos = min
     return pos
 
+
 def down(pos, max, min=0):
-    pos-=1
+    pos -= 1
     if pos < min:
         pos = max
     return pos
+
 
 def load():
     print("loading . . .")
     pass
 
+
 def save():
     print("saving . . .")
     pass
+
 
 def close():
     save()
     print("exiting . . .")
     exit()
 
+
 def newGame():
     print("Insert Players: ")
-    playerlist=[]
+    playerlist = []
     while True:
         name = input("Name: ")
         if name == "\\":
@@ -198,18 +198,21 @@ def newGame():
             continue
         elif score == ";":
             break
-        elif type(score) is not int:
+        try:
+            score = int(score)
+        except ValueError:
             print("illegal input for Elo")
             continue
 
-        playerlist.append(Player(len(playerlist), name, int(score)))
-
+        playerlist.append(Player(len(playerlist), name, score))
 
     return Playerlist(playerlist)
+
 
 def newRound():
     print("playing . . .")
     pass
+
 
 def stats():
     print("stats uwu")
@@ -223,5 +226,3 @@ if __name__ == '__main__':
     while True:
         if menu(curTournament):
             pass
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/>
