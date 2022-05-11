@@ -1,6 +1,7 @@
 import keyboard
 import os
 import time
+import json
 
 maxVal = -1
 backTrack = 3
@@ -24,14 +25,49 @@ class Player:
     def print(self):
         print("{}: Name: {}, Score: {}".format(self.id, self.name, self.score))
 
+    def colorAVG(self):
+        sum = 0
+        for res in self.history:
+            sum += res[3]
+        return sum
+
+    def legalPairing(self, matched):
+        length = len(self.history)
+        if length <= backTrack:
+            for res in self.history:
+                if res[0] == matched:
+                    return False
+            return True
+        for i in range(backTrack):
+            if self.history[length - i][0] == matched:
+                return False
+        return True
+
+    def toJSON(self):
+        dic = {"id": self.id, "name": self.name, "score": self.score, "value": self.value, "malus": self.malus,
+               "history": self.history, "active": self.active}
+        return json.dumps(dic)
+
+    def fromJSON(self, playerjson):
+        # TODO: Errorhandling: Keyerror
+        dic = json.loads(playerjson)
+        self.id = dic["id"]
+        self.name = dic["name"]
+        self.value = dic["value"]
+        self.score = dic["score"]
+        self.history = dic["history"]
+        self.active = dic["active"]
+        self.malus = dic["malus"]
+
 
 class Playerlist:
-    def __init__(self, playerlist=None):
-        if playerlist is None:
-            playerlist = []
-        self.cur = playerlist
+    def __init__(self, listofplayers=None):
+        if listofplayers is None:
+            listofplayers = []
+        self.cur = listofplayers
         self.cur.sort(key=lambda x: x.score, reverse=True)
         self.sortedByID = sorted(self.cur, key=lambda x: x.score, reverse=True)
+        self.assignment = []
         for player in self.cur:
             if type(player) != Player:
                 raise ValueError("Inserted a none-Player into Playerlist")
@@ -41,6 +77,9 @@ class Playerlist:
         for i in range(len(self.cur)):
             self.cur[i].value = maxVal - i - self.cur[i].malus
             self.cur[i].id = i
+
+    def __len__(self):
+        return len(self.sortedByID)
 
     def print(self):
         for player in self.sortedByID:
@@ -55,7 +94,7 @@ class Playerlist:
             player.score -= player.malus
 
 
-def menu(playerlist=None):
+def menu_main(playerlist: Playerlist = None):
     """
     Menu points:
     0: New tournament
@@ -69,18 +108,17 @@ def menu(playerlist=None):
     :param playerlist: currently used Playerlist
     :return:
     """
-
+    MAXMENUPOINT = 5
     pos = 0
 
     while keyboard.is_pressed("enter"):
         pass
 
     if not playerlist:
+        os.system('cls')
+        print('*' if pos == 0 else ' ', "New tournament")
+        print('*' if pos == 1 else ' ', "Load")
         while True:
-            os.system('cls')
-            print('*' if pos == 0 else ' ', "New tournament")
-            print('*' if pos == 1 else ' ', "Load")
-
             pressed = keyboard.read_key()
             time.sleep(0.005)
             while keyboard.is_pressed(pressed):
@@ -90,15 +128,50 @@ def menu(playerlist=None):
                 pos ^= True
             elif pressed == "enter":
                 break
+            else:
+                continue
+            os.system('cls')
+            print('*' if pos == 0 else ' ', "New tournament")
+            print('*' if pos == 1 else ' ', "Load")
             # print(pressed)
         if pos == 0:
             playerlist = newGame()
             playerlist.print()
             return playerlist
         else:
-            load()
+            load(playerlist)
     else:
+        os.system('cls')
+        print('*' if pos == 0 else ' ', "New tournament")
+        print('*' if pos == 1 else ' ', "Load")
+        print('*' if pos == 2 else ' ', "Save")
+        print('*' if pos == 3 else ' ', "Exit")
+        print('*' if pos == 4 else ' ', "New Round")
+        print('*' if pos == 5 else ' ', "Stats")
+        for player in playerlist.sortedByID:
+            print('*' if pos == MAXMENUPOINT + 1 + player.id else ' ', 'A' if player.active else 'P', player.name + ':',
+                  'score: ' + str(player.score) + ',', 'malus: ' + str(player.malus))
+
         while True:
+            pressed = keyboard.read_key()
+            time.sleep(0.005)
+            while keyboard.is_pressed(pressed):
+                pass
+            time.sleep(0.005)
+            if pressed == "nach-oben":
+                pos = down(pos, MAXMENUPOINT + len(playerlist))
+            elif pressed == "nach-unten":
+                pos = up(pos, MAXMENUPOINT + len(playerlist))
+            elif pressed == "enter":
+                if pos > MAXMENUPOINT:
+                    playerlist.sortedByID[pos - MAXMENUPOINT - 1].active ^= True
+                else:
+                    break
+            elif pressed == "tab":
+                # TODO: enter some editing tool for a player, for example tweak elo/malus/results/name
+                pass
+            else:
+                continue
             os.system('cls')
             print('*' if pos == 0 else ' ', "New tournament")
             print('*' if pos == 1 else ' ', "Load")
@@ -107,23 +180,8 @@ def menu(playerlist=None):
             print('*' if pos == 4 else ' ', "New Round")
             print('*' if pos == 5 else ' ', "Stats")
             for player in playerlist.sortedByID:
-                print('*' if pos == 1 else ' ', 'A' if player.active else 'P', player.name + ':',
+                print('*' if pos == 6 + player.id else ' ', 'A' if player.active else 'P', player.name + ':',
                       'score: ' + str(player.score) + ',', 'malus: ' + str(player.malus))
-
-            pressed = keyboard.read_key()
-            time.sleep(0.005)
-            while keyboard.is_pressed(pressed):
-                pass
-            time.sleep(0.005)
-            if pressed == "nach-oben":
-                pos = up(pos, 5 + len(playerlist))
-            elif pressed == "nach-unten":
-                pos = down(pos, 5 + len(playerlist))
-            elif pressed == "enter":
-                break
-            elif pressed == "tab":
-                # TODO: enter some editing tool for a player, for example tweak elo/malus/results/name
-                pass
             # print(pressed)
 
         if pos == 0:
@@ -132,17 +190,22 @@ def menu(playerlist=None):
             playerlist.print()
             return playerlist
         elif pos == 1:
-            load()
+            load(playerlist)
         elif pos == 2:
-            save()
+            save(playerlist)
         elif pos == 3:
-            close()
+            close(playerlist)
         elif pos == 4:
-            newRound()
+            newRound(playerlist)
         elif pos == 5:
             stats()
-        else:
-            playerlist.sortedbyID[pos-5].active ^= True
+
+        return pos
+
+
+def menu_round(playerlist: Playerlist):
+    print("new round menu")
+    pass
 
 
 def up(pos, max, min=0):
@@ -159,18 +222,23 @@ def down(pos, max, min=0):
     return pos
 
 
-def load():
+def load(playerlist: Playerlist):
     print("loading . . .")
     pass
 
 
-def save():
+def save(playerlist: Playerlist):
     print("saving . . .")
-    pass
+    print(maxVal, backTrack, len(playerlist), len(playerlist.assignment))
+    for player in playerlist.sortedByID:
+        print(player.toJSON())
+    for sign in playerlist.assignment:
+        print(sign)
+    return True
 
 
-def close():
-    save()
+def close(playerlist: Playerlist):
+    save(playerlist)
     print("exiting . . .")
     exit()
 
@@ -209,9 +277,46 @@ def newGame():
     return Playerlist(playerlist)
 
 
-def newRound():
-    print("playing . . .")
-    pass
+def newRound(playerlist: Playerlist):
+    toMatch = []
+    for player in playerlist.cur:
+        if player.active:
+            toMatch.append(player.id)
+        else:
+            playerlist.assignment.append((player.id, -2, 0))
+
+    if len(toMatch) < 2:
+        return AttributeError("Insufficient number of players")
+
+    # TODO: make backtrack continuously smaller
+    if not match(playerlist, toMatch):
+        return ValueError("no valid round possible with given configuration")
+
+
+def match(playerlist: Playerlist, toMatch, startindex=0, matched=None):
+    if matched is not None:
+        for i in range(startindex, len(toMatch)):
+            if playerlist.sortedByID[matched].legalPairing(i):
+                curtry = toMatch.pop(startindex + i)
+                if match(playerlist, toMatch, 0):
+                    playerlist.assignment.append((matched, curtry, 0))
+                    return True
+                toMatch.insert(startindex + i, curtry)
+        return False
+
+    else:
+        if len(toMatch) == 0:
+            return True
+        elif len(toMatch) == 1:
+            playerlist.assignment.append((toMatch[0], -1, 0))
+            return True
+        else:
+            for i in range(startindex, len(toMatch) - 1):
+                curtry = toMatch.pop(startindex + i)
+                if match(playerlist, toMatch, startindex + i, curtry):
+                    return True
+                toMatch.insert(startindex + i, curtry)
+            return False
 
 
 def stats():
@@ -221,8 +326,17 @@ def stats():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    curTournament = menu()
+    playerslist = [Player(0, "Willi", 15),
+                   Player(1, "Jonny", 7),
+                   Player(2, "Erik", 20),
+                   Player(3, "Annika", 3)]
+    curTournament = Playerlist(playerslist)
+    curTournament.sortedByID[1].active = False
+    newRound(curTournament)
+    save(curTournament)
 
+    """
     while True:
-        if menu(curTournament):
+        if menu_main(curTournament):
             pass
+    """
