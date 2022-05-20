@@ -32,7 +32,7 @@ class Player:
         pass
 
     def print(self):
-        print("{}: Name: {}, Score: {:.2f}".format(self.id, self.name, self.score))
+        print("{:2d}: Name: {}, Score: {:.2f}, Malus: {:.1f}".format(self.id, self.name, self.score, self.malus))
 
     def colorAVG(self):
         sum = 0
@@ -67,10 +67,10 @@ class Player:
             self.id = int(dic["id"])
             self.name = dic["name"]
             self.value = int(dic["value"])
-            self.score = int(dic["score"])
+            self.score = float(dic["score"])
             self.history = dic["history"]
             self.active = bool(dic["active"])
-            self.malus = int(dic["malus"])
+            self.malus = float(dic["malus"])
         except ValueError:
             return False
         return self
@@ -91,6 +91,7 @@ class Playerlist:
                 5: no result (only for not matched players so the game counts as finished)
     """
     def __init__(self, listofplayers=None):
+        global maxVal
         if listofplayers is None:
             listofplayers = []
         self.cur = listofplayers
@@ -101,7 +102,7 @@ class Playerlist:
             if type(player) != Player:
                 raise ValueError("Inserted a none-Player into Playerlist")
         global maxVal
-        if maxVal < 0:
+        if maxVal < 3:
             maxVal = 3 * len(self.cur) // 2 + 1
         for i in range(len(self.cur)):
             self.cur[i].value = maxVal - i - self.cur[i].malus
@@ -115,7 +116,13 @@ class Playerlist:
         strng = "["
         for player in self.cur:
             strng += player.name + ","
-        return strng[:-1]+"]"
+        return strng[:-1]+"]" if len(strng) > 1 else "[]"
+
+    def add_Player(self, player: Player):
+        if player.id != len(self):
+            raise IndexError("Player has incorrect ID")
+        self.sortedByID.append(player)
+        self.cur.append(player)
 
     def print(self):
         for player in self.sortedByID:
@@ -136,14 +143,15 @@ class Playerlist:
                 self.sortedByID[sign[0]].history.append([sign[1], 0, 1])
                 self.sortedByID[sign[1]].history.append([sign[0], 0, -1])
             elif sign[2] == 5:
-                if sign[1] == "-1":
+                if sign[1] == -1:
                     self.sortedByID[sign[0]].history.append([sign[0], 4, 0])
-                elif sign[1] == "-2":
+                elif sign[1] == -2:
                     self.sortedByID[sign[0]].history.append([sign[0], 2, 0])
                 else:
                     ValueError("a none free match got a no result")
             else:
                 raise ValueError("illegal result for match")
+        self.assignment.clear()
 
     def calcRound(self):
         for player in self.cur:
@@ -156,12 +164,12 @@ class Playerlist:
 
     def assign(self, a: int, b: int):
         if b < 0:
-            self.assignment.append((a, b, 5))
+            self.assignment.append([a, b, 5])
             return
         col_a = self.sortedByID[a].colorAVG()
         col_b = self.sortedByID[a].colorAVG()
         if col_a == col_b:
-            if (random.randint(0,1)):
+            if random.randint(0, 1):
                 self.assignment.append([a, b, 0])
             else:
                 self.assignment.append([b, a, 0])
@@ -183,7 +191,7 @@ def menu_main(playerlist: Playerlist = None):
     6-n: Active Players
 
     :param playerlist: currently used Playerlist
-    :return:
+    :return: playerlist
     """
     MAXMENUPOINT = 5
     pos = 0
@@ -214,9 +222,14 @@ def menu_main(playerlist: Playerlist = None):
         if pos == 0:
             playerlist = newGame()
             playerlist.print()
-            return playerlist
         else:
-            load()
+            return load()
+    elif len(playerlist.assignment) > 0:
+        if menu_round(playerlist):
+            playerlist.evalRound()
+            playerlist.calcRound()
+        else:
+            playerlist.assignment.clear()
     else:
         os.system('cls')
         print('*' if pos == 0 else ' ', "New tournament")
@@ -267,7 +280,7 @@ def menu_main(playerlist: Playerlist = None):
             return playerlist
         # TODO: messages for successful loading/saving
         elif pos == 1:
-            load()
+            return load()
         elif pos == 2:
             save(playerlist)
         elif pos == 3:
@@ -275,10 +288,13 @@ def menu_main(playerlist: Playerlist = None):
         elif pos == 4:
             if newRound(playerlist):
                 playerlist.evalRound()
+                playerlist.calcRound()
+            else:
+                playerlist.assignment.clear()
         elif pos == 5:
-            stats()
+            stats(playerlist)
 
-        return pos
+    return playerlist
 
 
 def menu_round(playerlist: Playerlist):
@@ -286,10 +302,13 @@ def menu_round(playerlist: Playerlist):
     Menu points:
     0: Truncate Round
     1: Evaluate Round
-    2-n: Active Players
+    2: Save
+    3: Exit
+    4-n: Active Players
 
     :param playerlist: currently used Playerlist
-    :return:
+    :return: True if round is finished
+             False if round got truncated
     """
     resultDir = {0: "_-_",
                  1: "1-0",
@@ -297,7 +316,7 @@ def menu_round(playerlist: Playerlist):
                  3: "½-½",
                  4: "0-0",
                  5: "/3"}
-    MAXMENUPOINT = 1
+    MAXMENUPOINT = 3
     pos = 0
     visibleAssignments = []
     for i in range(len(playerlist.assignment)):
@@ -310,6 +329,8 @@ def menu_round(playerlist: Playerlist):
     os.system('cls')
     print('*' if pos == 0 else ' ', "Truncate Round")
     print('*' if pos == 1 else ' ', "Evaluate Round")
+    print('*' if pos == 2 else ' ', "Save")
+    print('*' if pos == 3 else ' ', "Exit")
     for i in range(len(visibleAssignments)):
         print('*' if pos == MAXMENUPOINT + 1 + i else ' ',
               playerlist.sortedByID[playerlist.assignment[visibleAssignments[i]][0]].name, "-",
@@ -340,6 +361,10 @@ def menu_round(playerlist: Playerlist):
                     continue
                 else:
                     return True
+            elif pos == 2:
+                save(playerlist)
+            elif pos == 3:
+                close(playerlist)
             else:
                 playerlist.assignment[visibleAssignments[pos-1-MAXMENUPOINT]][2] = \
                     up(playerlist.assignment[visibleAssignments[pos-1-MAXMENUPOINT]][2], 4)
@@ -348,7 +373,9 @@ def menu_round(playerlist: Playerlist):
         os.system('cls')
         print('*' if pos == 0 else ' ', "Truncate Round")
         print('*' if pos == 1 else ' ', "Evaluate Round")
-        for i in visibleAssignments:
+        print('*' if pos == 2 else ' ', "Save")
+        print('*' if pos == 3 else ' ', "Exit")
+        for i in range(len(visibleAssignments)):
             print('*' if pos == MAXMENUPOINT + 1 + i else ' ',
                   playerlist.sortedByID[playerlist.assignment[visibleAssignments[i]][0]].name, "-",
                   playerlist.sortedByID[playerlist.assignment[visibleAssignments[i]][1]].name + ":",
@@ -372,6 +399,7 @@ def down(pos, max, min=0):
 def load():
     global path, tournamentName, maxVal, backTrack
     filepath = path + tournamentName + ".kst"
+    flush_input()
     if not os.path.isfile(filepath):
         print("No legal file specified")
         temp = input("tournament file: ")
@@ -387,7 +415,7 @@ def load():
             tournamentName = temp[:end].split('.')[0]
         filepath = temp
 
-    newListOfPlayers = []
+    newListOfPlayers = Playerlist()
     f = open(filepath, 'r')
     line = f.readline()
     params = line.split(' ')
@@ -405,12 +433,11 @@ def load():
         if not newPlayer:
             print("input file has corrupted players")
             return False
-        newListOfPlayers.append(newPlayer)
+        newListOfPlayers.add_Player(newPlayer)
         del newPlayer
-    newListOfPlayers = Playerlist(newListOfPlayers)
     for i in range(matches):
         try:
-            match = tuple(map(int, f.readline().split(' ')))
+            match = [int(i) for i in f.readline().split(' ')]
         except ValueError:
             print("input file has corrupted assignments")
             return False
@@ -425,6 +452,7 @@ def load():
 
 
 def save(playerlist: Playerlist):
+    print("saving . . .")
     # TODO: file dialog
     global path
     if not path:
@@ -463,7 +491,7 @@ def close(playerlist: Playerlist):
 def newGame():
     flush_input()
     global tournamentName
-    tournamentName = input("Tournament Name:")
+    tournamentName = input("Tournament Name: ")
     # TODO: path for tournament
     print("Insert Players: ")
     playerlist = []
@@ -487,6 +515,8 @@ def newGame():
             continue
         elif score == ";":
             break
+        elif score == "":
+            score = 0
         try:
             score = int(score)
         except ValueError:
@@ -504,7 +534,7 @@ def newRound(playerlist: Playerlist):
         if player.active:
             toMatch.append(player.id)
         else:
-            playerlist.assignment.append((player.id, -2, 0))
+            playerlist.assign(player.id, -2)
 
     if len(toMatch) < 2:
         return AttributeError("Insufficient number of players")
@@ -512,6 +542,8 @@ def newRound(playerlist: Playerlist):
     # TODO: make backtrack continuously smaller
     if not match(playerlist, toMatch):
         return ValueError("no valid round possible with given configuration")
+
+    playerlist.assignment.reverse()
 
     return menu_round(playerlist)
 
@@ -542,8 +574,22 @@ def match(playerlist: Playerlist, toMatch, startindex=0, matched=None):
             return False
 
 
-def stats():
-    print("stats uwu")
+def stats(playerlist: Playerlist):
+    while keyboard.is_pressed("enter"):
+        pass
+    time.sleep(0.005)
+    os.system('cls')
+
+    playerlist.cur.sort(key=lambda x: x.score, reverse=True)
+    for player in playerlist.cur:
+        player.print()
+
+    pressed = keyboard.read_key()
+    while keyboard.is_pressed(pressed):
+        pass
+    time.sleep(0.005)
+
+
     pass
 
 
@@ -596,16 +642,18 @@ def debug0():
 
 
 if __name__ == '__main__':
-    # TODO: test argument handling
-    if len(sys.argv) > 0:
-        if os.path.isdir(sys.argv[0]):
-            path = sys.argv[0]
-        elif os.path.isfile(sys.argv[0]):
-            endOfPath = sys.argv[0].rfind('\\')
+    # TODO: fix/test argument handling
+    if len(sys.argv) > 1:
+        if os.path.isdir(sys.argv[1]):
+            path = sys.argv[1]
+        elif os.path.isfile(sys.argv[1]):
+            endOfPath = sys.argv[1].rfind('\\')
             if endOfPath == -1:
-                tournamentName = sys.argv[0].split('.')[0]
+                tournamentName = sys.argv[1].split('.')[0]
             else:
-                path = sys.argv[0][:endOfPath]
-                tournamentName = sys.argv[0][:endOfPath].split('.')[0]
+                path = sys.argv[1][:endOfPath]
+                tournamentName = sys.argv[1][:endOfPath].split('.')[0]
 
-    debug1()
+    curTournament = Playerlist()
+    while True:
+        curTournament = menu_main(curTournament)
