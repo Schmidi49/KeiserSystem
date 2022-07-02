@@ -48,7 +48,7 @@ class Player:
                     return False
             return True
         for i in range(backTrack):
-            if self.history[length - i][0] == matched:
+            if self.history[length - 1 - i][0] == matched:
                 return False
         return True
 
@@ -205,10 +205,10 @@ def menu_main(playerlist: Playerlist = None):
         print('*' if pos == 1 else ' ', "Load")
         while True:
             pressed = keyboard.read_key()
-            time.sleep(0.005)
+            time.sleep(0.02)
             while keyboard.is_pressed(pressed):
                 pass
-            time.sleep(0.005)
+            time.sleep(0.02)
             if pressed == "nach-oben" or pressed == "nach-unten":
                 pos ^= True
             elif pressed == "enter":
@@ -244,10 +244,10 @@ def menu_main(playerlist: Playerlist = None):
 
         while True:
             pressed = keyboard.read_key()
-            time.sleep(0.005)
+            time.sleep(0.02)
             while keyboard.is_pressed(pressed):
                 pass
-            time.sleep(0.005)
+            time.sleep(0.02)
             if pressed == "nach-oben":
                 pos = down(pos, MAXMENUPOINT + len(playerlist))
             elif pressed == "nach-unten":
@@ -339,10 +339,10 @@ def menu_round(playerlist: Playerlist):
 
     while True:
         pressed = keyboard.read_key()
-        time.sleep(0.005)
+        time.sleep(0.02)
         while keyboard.is_pressed(pressed):
             pass
-        time.sleep(0.005)
+        time.sleep(0.02)
         if pressed == "nach-oben":
             pos = down(pos, MAXMENUPOINT + len(visibleAssignments))
         elif pressed == "nach-unten":
@@ -577,17 +577,17 @@ def match(playerlist: Playerlist, toMatch, startindex=0, matched=None):
 def stats(playerlist: Playerlist):
     while keyboard.is_pressed("enter"):
         pass
-    time.sleep(0.005)
+    
     os.system('cls')
 
-    playerlist.cur.sort(key=lambda x: x.score, reverse=True)
+    playerlist.cur.sort(key=lambda x: x.score-x.malus, reverse=True)
     for player in playerlist.cur:
         player.print()
 
     pressed = keyboard.read_key()
     while keyboard.is_pressed(pressed):
         pass
-    time.sleep(0.005)
+    time.sleep(0.02)
 
 
     pass
