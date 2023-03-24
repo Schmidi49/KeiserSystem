@@ -286,7 +286,10 @@ def menu_main(playerlist: Playerlist = None):
         elif pos == 3:
             close(playerlist)
         elif pos == 4:
-            if newRound(playerlist):
+            #TODO use this sorting in reading
+            playerlist.calcRound()
+            if newRound(playerlist
+                        ):
                 playerlist.evalRound()
                 playerlist.calcRound()
             else:
